@@ -1,0 +1,81 @@
+# Flutter/Dart/Pub related
+.dart_tool/
+.packages
+.pub-cache/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+generated_plugin_registrant.dart
+
+# Android related
+android/.gradle/
+android/captures/
+android/.idea/
+android/local.properties
+android/app/build/
+android/app/.cxx/
+
+# iOS related
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+ios/Flutter/Generated.xcconfig
+ios/Runner.xcworkspace/
+ios/Pods/
+ios/.symlinks/
+ios/Podfile.lock
+ios/Runner/GeneratedPluginRegistrant.*
+
+# VS Code
+.vscode/
+
+# Xcode
+*.xcworkspace
+*.xcuserstate
+*.xcuserdatad
+*.xcsettings
+
+# Others
+.metadata
+*.iml
+
+# macOS
+macos/Flutter/ephemeral/
+macos/Pods/
+macos/Podfile.lock
+
+# Linux
+linux/flutter/ephemeral/
+
+# Web
+web/generated_plugin_registrant.dart
+
+# Windows
+windows/flutter/ephemeral/
+
+# Tests
+coverage/
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Archivos generados automáticamente - Linux
+linux/flutter/generated_plugin_registrant.*
+linux/flutter/generated_plugins.cmake
+linux/flutter/ephemeral/
+
+# Archivos generados automáticamente - macOS
+macos/Flutter/GeneratedPluginRegistrant.swift
+macos/Flutter/ephemeral/
+macos/Pods/
+macos/Podfile.lock
+
+# Archivos generados automáticamente - Windows
+windows/flutter/generated_plugin_registrant.*
+windows/flutter/generated_plugins.cmake
+windows/flutter/ephemeral/
+
+# Google services
+android/app/google-services.json
