@@ -5,6 +5,17 @@ import '../models/producto.dart';
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
+  String convertDriveLinkToDirect(String driveLink) {
+    final regExp = RegExp(r'/d/([a-zA-Z0-9_-]+)');
+    final match = regExp.firstMatch(driveLink);
+    if (match != null && match.groupCount >= 1) {
+      final id = match.group(1);
+      return 'https://drive.google.com/uc?export=view&id=$id';
+    } else {
+      return driveLink;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
