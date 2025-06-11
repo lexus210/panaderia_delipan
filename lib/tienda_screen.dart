@@ -4,6 +4,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class TiendaScreen extends StatefulWidget {
   const TiendaScreen({super.key});
@@ -17,7 +18,7 @@ class _TiendaScreenState extends State<TiendaScreen> {
   LatLng? ubicacionTienda;
   GoogleMapController? mapController;
   Set<Polyline> polylines = {};
-  final String apiKey = "Kx3JHcjE29XvsvGuz9uB"; // tu API Key
+  final String apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '';
 
   @override
   void initState() {
@@ -27,47 +28,48 @@ class _TiendaScreenState extends State<TiendaScreen> {
   }
 
   Future<void> obtenerUbicacionUsuario() async {
-    bool servicioHabilitado = await Geolocator.isLocationServiceEnabled();
-    if (!servicioHabilitado) {
-      // Manejar el caso en el que el servicio de ubicación no está habilitado
-      return;
+    try {
+      bool servicioHabilitado = await Geolocator.isLocationServiceEnabled();
+      if (!servicioHabilitado) return;
+
+      LocationPermission permiso = await Geolocator.checkPermission();
+      if (permiso == LocationPermission.denied) {
+        permiso = await Geolocator.requestPermission();
+        if (permiso == LocationPermission.denied) return;
+      }
+      if (permiso == LocationPermission.deniedForever) return;
+
+      Position posicion = await Geolocator.getCurrentPosition();
+      setState(() {
+        ubicacionUsuario = LatLng(posicion.latitude, posicion.longitude);
+      });
+
+      if (ubicacionTienda != null) obtenerRuta();
+    } catch (e) {
+      mostrarError('Error obteniendo tu ubicación');
     }
-
-    LocationPermission permiso = await Geolocator.checkPermission();
-    if (permiso == LocationPermission.denied) {
-      permiso = await Geolocator.requestPermission();
-      if (permiso == LocationPermission.denied) return;
-    }
-    if (permiso == LocationPermission.deniedForever) return;
-
-    Position posicion = await Geolocator.getCurrentPosition();
-    setState(() {
-      ubicacionUsuario = LatLng(posicion.latitude, posicion.longitude);
-    });
-
-    if (ubicacionTienda != null) obtenerRuta();
   }
 
   Future<void> obtenerUbicacionTienda() async {
     try {
-      final snapshot =
-          await FirebaseFirestore.instance
-              .collection('tienda')
-              .doc('principal')
-              .get();
+      final snapshot = await FirebaseFirestore.instance
+          .collection('tienda')
+          .doc('principal')
+          .get();
 
       final data = snapshot.data();
-      if (data != null && data['tienda'] != null) {
+      if (data != null && data['tienda'] is GeoPoint) {
         final geo = data['tienda'] as GeoPoint;
         setState(() {
           ubicacionTienda = LatLng(geo.latitude, geo.longitude);
         });
 
         if (ubicacionUsuario != null) obtenerRuta();
+      } else {
+        mostrarError('Ubicación de la tienda no disponible');
       }
     } catch (e) {
-      print("Error al obtener la ubicación de la tienda: $e");
-      // Aquí puedes agregar un mensaje de error si la tienda no se encuentra o si hay algún problema
+      mostrarError('Error al obtener la ubicación de la tienda');
     }
   }
 
@@ -100,10 +102,10 @@ class _TiendaScreenState extends State<TiendaScreen> {
           };
         });
       } else {
-        print("Error al obtener la ruta: ${respuesta.statusCode}");
+        mostrarError('Error obteniendo la ruta (${respuesta.statusCode})');
       }
     } catch (e) {
-      print("Error al obtener la ruta: $e");
+      mostrarError('Error de red al obtener la ruta');
     }
   }
 
@@ -138,36 +140,42 @@ class _TiendaScreenState extends State<TiendaScreen> {
     return polyline;
   }
 
+  void mostrarError(String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensaje)));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Cómo llegar a la tienda")),
-      body:
-          (ubicacionUsuario == null || ubicacionTienda == null)
-              ? const Center(child: CircularProgressIndicator())
-              : GoogleMap(
-                initialCameraPosition: CameraPosition(
-                  target: ubicacionUsuario!,
-                  zoom: 13,
+      body: (ubicacionUsuario == null || ubicacionTienda == null)
+          ? const Center(child: CircularProgressIndicator())
+          : GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: LatLng(
+                  (ubicacionUsuario!.latitude + ubicacionTienda!.latitude) / 2,
+                  (ubicacionUsuario!.longitude + ubicacionTienda!.longitude) / 2,
                 ),
-                markers: {
-                  Marker(
-                    markerId: const MarkerId('usuario'),
-                    position: ubicacionUsuario!,
-                    infoWindow: const InfoWindow(title: 'Tu ubicación'),
-                    icon: BitmapDescriptor.defaultMarkerWithHue(
-                      BitmapDescriptor.hueAzure,
-                    ),
-                  ),
-                  Marker(
-                    markerId: const MarkerId('tienda'),
-                    position: ubicacionTienda!,
-                    infoWindow: const InfoWindow(title: 'Panaderia Delicia'),
-                  ),
-                },
-                polylines: polylines,
-                onMapCreated: (controller) => mapController = controller,
+                zoom: 13,
               ),
+              markers: {
+                Marker(
+                  markerId: const MarkerId('usuario'),
+                  position: ubicacionUsuario!,
+                  infoWindow: const InfoWindow(title: 'Tu ubicación'),
+                  icon: BitmapDescriptor.defaultMarkerWithHue(
+                    BitmapDescriptor.hueAzure,
+                  ),
+                ),
+                Marker(
+                  markerId: const MarkerId('tienda'),
+                  position: ubicacionTienda!,
+                  infoWindow: const InfoWindow(title: 'Panadería Delicia'),
+                ),
+              },
+              polylines: polylines,
+              onMapCreated: (controller) => mapController = controller,
+            ),
     );
   }
 }

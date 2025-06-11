@@ -11,7 +11,8 @@ class HistorialPedidosScreen extends StatefulWidget {
 }
 
 class _HistorialPedidosScreenState extends State<HistorialPedidosScreen> {
-  final user = FirebaseAuth.instance.currentUser;
+  final User? user = FirebaseAuth.instance.currentUser;
+  final NumberFormat currencyFormat = NumberFormat.currency(locale: 'es_PE', symbol: 'S/');
 
   @override
   Widget build(BuildContext context) {
@@ -40,35 +41,45 @@ class _HistorialPedidosScreenState extends State<HistorialPedidosScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
+
           final docs = snapshot.data?.docs ?? [];
 
           if (docs.isEmpty) {
             return const Center(child: Text('No hay pedidos en el historial'));
           }
 
-          return ListView.builder(
+          return ListView.separated(
+            padding: const EdgeInsets.all(12),
             itemCount: docs.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final pedido = docs[index];
-              final fechaTimestamp = pedido['fecha'] as Timestamp?;
+              final data = pedido.data() as Map<String, dynamic>? ?? {};
+
+              final fechaTimestamp = data['fecha'] as Timestamp?;
               final fecha = fechaTimestamp != null
                   ? DateFormat('dd/MM/yyyy HH:mm').format(fechaTimestamp.toDate())
                   : 'Fecha desconocida';
 
-              final productos = List<Map<String, dynamic>>.from(pedido['productos'] ?? []);
-              final total = pedido['total'] ?? 0;
+              final productos = data.containsKey('productos')
+                  ? List<Map<String, dynamic>>.from(data['productos'] ?? [])
+                  : <Map<String, dynamic>>[];
+
+              final total = data.containsKey('total') ? (data['total'] as num?) ?? 0 : 0;
 
               return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 3,
                 child: ExpansionTile(
                   title: Text('Pedido - $fecha'),
-                  subtitle: Text('Total: S/ ${total.toStringAsFixed(2)}'),
+                  subtitle: Text('Total: ${currencyFormat.format(total)}'),
                   children: productos.map((prod) {
                     final nombre = prod['nombre'] ?? 'Producto';
                     final precio = double.tryParse(prod['precio'].toString()) ?? 0.0;
                     return ListTile(
+                      leading: const Icon(Icons.shopping_bag_outlined),
                       title: Text(nombre),
-                      trailing: Text('S/ ${precio.toStringAsFixed(2)}'),
+                      trailing: Text(currencyFormat.format(precio)),
                     );
                   }).toList(),
                 ),
