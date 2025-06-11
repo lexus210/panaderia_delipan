@@ -30,23 +30,36 @@ class _TiendaScreenState extends State<TiendaScreen> {
   Future<void> obtenerUbicacionUsuario() async {
     try {
       bool servicioHabilitado = await Geolocator.isLocationServiceEnabled();
-      if (!servicioHabilitado) return;
+      if (!servicioHabilitado) {
+        mostrarError('El GPS está desactivado.');
+        return;
+      }
 
       LocationPermission permiso = await Geolocator.checkPermission();
       if (permiso == LocationPermission.denied) {
         permiso = await Geolocator.requestPermission();
-        if (permiso == LocationPermission.denied) return;
+        if (permiso == LocationPermission.denied) {
+          mostrarError('Permisos de ubicación denegados.');
+          return;
+        }
       }
-      if (permiso == LocationPermission.deniedForever) return;
 
-      Position posicion = await Geolocator.getCurrentPosition();
+      if (permiso == LocationPermission.deniedForever) {
+        mostrarError('Permisos de ubicación denegados permanentemente.');
+        return;
+      }
+
+      Position posicion = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
       setState(() {
         ubicacionUsuario = LatLng(posicion.latitude, posicion.longitude);
       });
 
       if (ubicacionTienda != null) obtenerRuta();
     } catch (e) {
-      mostrarError('Error obteniendo tu ubicación');
+      mostrarError('No se pudo obtener la ubicación: $e');
     }
   }
 
