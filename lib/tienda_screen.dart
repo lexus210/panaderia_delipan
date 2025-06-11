@@ -17,7 +17,7 @@ class _TiendaScreenState extends State<TiendaScreen> {
   LatLng? ubicacionTienda;
   GoogleMapController? mapController;
   Set<Polyline> polylines = {};
-  final String apiKey = "AIzaSyBIZrptkE0IGakPhzMzMpq4PaW_gw_D1vk"; // tu API Key
+  final String apiKey = "Kx3JHcjE29XvsvGuz9uB"; // tu API Key
 
   @override
   void initState() {
@@ -162,7 +162,7 @@ class _TiendaScreenState extends State<TiendaScreen> {
                   Marker(
                     markerId: const MarkerId('tienda'),
                     position: ubicacionTienda!,
-                    infoWindow: const InfoWindow(title: 'La Jora'),
+                    infoWindow: const InfoWindow(title: 'Panaderia Delicia'),
                   ),
                 },
                 polylines: polylines,

@@ -225,10 +225,20 @@ class _ProductosScreenState extends State<ProductosScreen>
                                   .brown[100], // Fondo cálido para cada producto
                           child: ListTile(
                             contentPadding: const EdgeInsets.all(10),
-                            leading: Icon(
-                              Icons.bakery_dining,
-                              color: Colors.brown[700],
-                            ), // Icono de panadería
+                            leading: producto['imagenUrl'] != null
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    producto['imagenUrl'],
+                                    width: 50,
+                                    height: 50,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Icon(Icons.broken_image, color: Colors.grey);
+                                    },
+                                  ),
+                                )
+                              : Icon(Icons.bakery_dining, color: Colors.brown[700]),
                             title: Text(
                               producto['nombre'] ?? 'Sin nombre',
                               style: TextStyle(
