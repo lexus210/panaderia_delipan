@@ -17,14 +17,19 @@ class _PerfilScreenState extends State<PerfilScreen> {
   File? imagenSeleccionada;
   final picker = ImagePicker();
 
+  String nombre = '';
+  String correo = '';
+
+  final auth = FirebaseAuth.instance;
+
   @override
   void initState() {
     super.initState();
-    obtenerFotoPerfil();
+    obtenerDatosUsuario();
   }
 
-  Future<void> obtenerFotoPerfil() async {
-    final user = FirebaseAuth.instance.currentUser;
+  Future<void> obtenerDatosUsuario() async {
+    final user = auth.currentUser;
     if (user == null) return;
 
     final doc = await FirebaseFirestore.instance
@@ -33,9 +38,11 @@ class _PerfilScreenState extends State<PerfilScreen> {
         .get();
 
     final data = doc.data();
-    if (data != null && data['fotoPerfilBase64'] != null) {
+    if (data != null && mounted) {
       setState(() {
+        nombre = data['name'] ?? '';
         imagenBase64 = data['fotoPerfilBase64'];
+        correo = user.email ?? '';
       });
     }
   }
@@ -50,7 +57,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
   }
 
   Future<void> subirImagen() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = auth.currentUser;
     if (user == null || imagenSeleccionada == null) return;
 
     final bytes = await imagenSeleccionada!.readAsBytes();
@@ -59,17 +66,11 @@ class _PerfilScreenState extends State<PerfilScreen> {
     final docRef = FirebaseFirestore.instance.collection('usuarios').doc(user.uid);
     final docSnapshot = await docRef.get();
 
-    if (docSnapshot.exists) {
-      await docRef.update({
-        'fotoPerfilBase64': base64Image,
-        'correo': user.email ?? '',
-      });
-    } else {
-      await docRef.set({
-        'fotoPerfilBase64': base64Image,
-        'correo': user.email ?? '',
-      });
-    }
+    await docRef.set({
+      'fotoPerfilBase64': base64Image,
+      'correo': user.email ?? '',
+      'name': nombre,
+    }, SetOptions(merge: true));
 
     if (!mounted) return;
     setState(() {
@@ -82,6 +83,59 @@ class _PerfilScreenState extends State<PerfilScreen> {
     );
   }
 
+  Future<void> editarCampo({
+    required String titulo,
+    required String valorInicial,
+    required Function(String) onGuardar,
+    bool esPassword = false,
+  }) async {
+    final controller = TextEditingController(text: valorInicial);
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Editar $titulo'),
+        content: TextField(
+          controller: controller,
+          obscureText: esPassword,
+          decoration: InputDecoration(
+            labelText: titulo,
+            border: const OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await onGuardar(controller.text.trim());
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> actualizarNombre(String nuevoNombre) async {
+    final user = auth.currentUser;
+    if (user == null) return;
+
+    await FirebaseFirestore.instance
+        .collection('usuarios')
+        .doc(user.uid)
+        .update({'name': nuevoNombre});
+
+    setState(() {
+      nombre = nuevoNombre;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Nombre actualizado')),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -100,9 +154,9 @@ class _PerfilScreenState extends State<PerfilScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Mi Perfil')),
-      body: Center(
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircleAvatar(
               radius: 70,
@@ -111,26 +165,61 @@ class _PerfilScreenState extends State<PerfilScreen> {
                   imageWidget == null ? const Icon(Icons.person, size: 70) : null,
             ),
             const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () => seleccionarImagen(ImageSource.gallery),
-              icon: const Icon(Icons.image),
-              label: const Text("Desde galería"),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              alignment: WrapAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () => seleccionarImagen(ImageSource.gallery),
+                  icon: const Icon(Icons.image),
+                  label: const Text("Desde galería"),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () => seleccionarImagen(ImageSource.camera),
+                  icon: const Icon(Icons.camera_alt),
+                  label: const Text("Desde cámara"),
+                ),
+                if (imagenSeleccionada != null)
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                    onPressed: subirImagen,
+                    icon: const Icon(Icons.check),
+                    label: const Text("Guardar imagen"),
+                  ),
+              ],
             ),
-            ElevatedButton.icon(
-              onPressed: () => seleccionarImagen(ImageSource.camera),
-              icon: const Icon(Icons.camera_alt),
-              label: const Text("Desde cámara"),
-            ),
-            if (imagenSeleccionada != null)
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                onPressed: subirImagen,
-                icon: const Icon(Icons.check),
-                label: const Text("Guardar imagen"),
-              ),
+            const Divider(height: 40),
+            _buildCampoEditable("Nombre", nombre, () {
+              editarCampo(
+                titulo: "Nombre",
+                valorInicial: nombre,
+                onGuardar: actualizarNombre,
+              );
+            }),
+            _buildCampoNoEditable("Correo", correo),
+            _buildCampoNoEditable("Contraseña", "********"),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildCampoEditable(String label, String valor, VoidCallback onEdit) {
+    return ListTile(
+      title: Text(label),
+      subtitle: Text(valor),
+      trailing: IconButton(
+        icon: const Icon(Icons.edit),
+        onPressed: onEdit,
+      ),
+    );
+  }
+
+  Widget _buildCampoNoEditable(String label, String valor) {
+    return ListTile(
+      title: Text(label),
+      subtitle: Text(valor, style: const TextStyle(color: Colors.grey)),
     );
   }
 }
